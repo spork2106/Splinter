@@ -67,12 +67,12 @@ namespace Ultimate_Splinterlands_Bot_V2.Config
         public static bool RateLimited = false;
         public static object RateLimitedLock = new();
         public static List<BotInstance> BotInstances { get; set; }
-        public static List<(int index, string account, string battleResult, string rating, string ECR, string questStatus)> LogSummaryList { get; set; }
+        public static List<(int index, string account, string battleResult, string rating, string ECR, string questStatus,string spsStake)> LogSummaryList { get; set; }
 
         public static HttpClient HttpClient;
         public static CHived oHived;
 
-        public static readonly string[] STARTER_EDITIONS = new string[] { "7", "12" };
+        //public static readonly string[] STARTER_EDITIONS = new string[] { "7", "12" };
         public static DetailedCard[] CardsDetails;
         public static UserCard[] StarterCards;
         public static Dictionary<string, string> QuestTypes;

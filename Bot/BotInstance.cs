@@ -38,6 +38,8 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
         private int LeagueCached { get; set; }
         private int RatingCached { get; set; }
         private double ECRCached { get; set; }
+        private int GlintRCached { get; set; }
+		private decimal SPSCached { get; set; }
         private bool OutOfRc{ get; set; }
         private int LossesTotal { get; set; }
         private double DrawsTotal { get; set; }
@@ -282,6 +284,8 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 var cardQuery = CardsCached.Where(x => x.card_detail_id == (string)team["summoner_id"]);
                 string summoner = cardQuery.Any() ? cardQuery.First().card_long_id : null;
                 string monsters = "";
+                var culoare = (string)Settings.CardsDetails[((int)team["summoner_id"]) - 1].GetstringCardColor();
+                var allucolor = culoare;
                 for (int i = 0; i < 6; i++)
                 {
                     var cardId = (string)team[$"monster_{i + 1}_id"];
@@ -309,7 +313,11 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     {
                         break;
                     }
-
+                    var culori = (string)Settings.CardsDetails[((int)team[$"monster_{i + 1}_id"]) - 1].GetstringCardColor();
+					if (culoare == "Gold" && culori !="Gray" && culori !="Gold")
+					{
+						allucolor = culori;
+					}
                     monsters += "\"" + monster.card_long_id + "\",";
                 }
                 monsters = monsters[..^1];
@@ -322,9 +330,9 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 string teamHash = Helper.GenerateMD5Hash(summoner + "," + monsterClean + "," + secret);
 
                 string json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"summoner\":\"" + summoner 
-                    + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"app\":\"" 
+                    + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"allyColor\":\"" + allucolor + "\",\"app\":\"" 
                     + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-                
+				
                 //string json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
 
                 COperations.custom_json custom_Json = CreateCustomJson(false, true, "sm_submit_team", json);
@@ -557,10 +565,12 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     RatingCached = Settings.RankedFormat == "WILD" ? wildRating : modernRating;
                     LeagueCached = Settings.RankedFormat == "WILD" ? wildLeague : modernLeague;
 
-                    Reward.Quest = await SplinterlandsAPI.GetPlayerQuestAsync(Username);
+                   // Reward.Quest = await SplinterlandsAPI.GetPlayerQuestAsync(Username);
                     CardsCached = await SplinterlandsAPI.GetPlayerCardsAsync(Username, AccessToken);
                     JArray playerBalances = (JArray)await SplinterlandsAPI.GetPlayerBalancesAsync(Username);
                     ECRCached = GetEnergyFromPlayerBalances(playerBalances);
+                    GlintRCached = GetGlintFromPlayerBalances(playerBalances);
+					SPSCached = await SplinterlandsAPI.GetTotalUnclaimedBalanceAsync(Username, AccessToken);
 
                     if (Settings.UsePrivateAPI)
                     {
@@ -580,9 +590,10 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
 
                 LogSummary.Rating = RatingCached.ToString();
                 LogSummary.ECR = ECRCached.ToString();
-
+                LogSummary.QuestStatus = GlintRCached.ToString();
+				LogSummary.SPSStake = SPSCached.ToString();
                 Log.WriteToLog($"{Username}: Deck size: {(CardsCached.Length - 1).ToString().Pastel(Color.Red)} (duplicates filtered)"); // Minus 1 because phantom card array has an empty string in it
-                if (Reward.Quest != null)
+                /*if (Reward.Quest != null)
                 {
                     // new quests temp workaround
                     if (Settings.QuestTypes.ContainsKey(Reward.Quest.Name))
@@ -602,15 +613,15 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     Log.WriteToLog($"{Username}: Account has no quest! Log in via browser to request one!", Log.LogType.Warning);
                     Log.WriteToLog($"{Username}: Account has no quest! Log in via browser to request one!", Log.LogType.Warning);
                     Log.WriteToLog($"{Username}: Account has no quest! Log in via browser to request one!", Log.LogType.Warning);
-                }
+                }*/
 
                 await AdvanceLeagueAsync();
                 if (CheckOutOfRc()) return SleepUntil;
-                await ClaimQuestRewardAsync();
+                /*await ClaimQuestRewardAsync();
                 if (CheckOutOfRc()) return SleepUntil;
                 await RequestNewQuestViaAPIAsync();
                 if (CheckOutOfRc()) return SleepUntil;
-
+*/
                 Log.WriteToLog($"{Username}: Current Energy Level is { (ECRCached >= 25 ? ECRCached.ToString("N3").Pastel(Color.Green) : ECRCached.ToString("N3").Pastel(Color.Red)) }");
                 if (ECRCached < Settings.StopBattleBelowECR)
                 {
@@ -829,7 +840,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 {
                     CurrentlyActive = false;
                 }
-                Settings.LogSummaryList.Add((LogSummary.Index, LogSummary.Account, LogSummary.BattleResult, LogSummary.Rating, LogSummary.ECR, LogSummary.QuestStatus));
+                Settings.LogSummaryList.Add((LogSummary.Index, LogSummary.Account, LogSummary.BattleResult, LogSummary.Rating, LogSummary.ECR, LogSummary.QuestStatus,LogSummary.SPSStake));
             }
             return SleepUntil;
         }
@@ -1077,11 +1088,11 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
 
         private async Task ShowBattleResultLegacyAsync(string tx)
         {
-            (int newRating, int ratingChange, decimal decReward, int result) battleResult = new();
+            (int newRating, int ratingChange, decimal decReward, int result,int glint) battleResult = new();
             for (int i = 0; i < 14; i++)
             {
                 await Task.Delay(6000);
-                battleResult = await SplinterlandsAPI.GetBattleResultAsync(Username, tx);
+                battleResult = await SplinterlandsAPI.GetBattleResultAsync(Username, tx,AccessToken);
                 if (battleResult.result >= 0)
                 {
                     break;
@@ -1107,9 +1118,11 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     break;
                 case 1:
                     WinsTotal++;
-                    logTextBattleResult = $"You won! Reward: { battleResult.decReward } SPS";
+                    SPSCached += battleResult.decReward;
+					GlintRCached = GlintRCached + battleResult.glint;
+                    logTextBattleResult = $"You won! Reward: { battleResult.decReward } SPS, {battleResult.glint} GLINT";
                     Log.WriteToLog($"{Username}: { logTextBattleResult.Pastel(Color.Green) }");
-                    Log.WriteToLog($"{Username}: New rating is { battleResult.newRating } ({ ("+" + battleResult.ratingChange.ToString()).Pastel(Color.Green) })");
+                    Log.WriteToLog($"{Username}: New rating is { battleResult.newRating } ({ ("+" + battleResult.ratingChange.ToString()).Pastel(Color.Green) }, {battleResult.glint} GLINT");
                     break;
                 case 0:
                     LossesTotal++;
@@ -1121,7 +1134,8 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 default:
                     break;
             }
-
+			LogSummary.QuestStatus = GlintRCached.ToString();
+			LogSummary.SPSStake = SPSCached.ToString();
             LogSummary.Rating = $"{ battleResult.newRating } ({ battleResult.ratingChange })";
             LogSummary.BattleResult = logTextBattleResult;
         }
@@ -1155,10 +1169,10 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 if ((string)GameEvents[GameEvent.battle_result]["winner"] == Username)
                 {
                     battleResult = 1;
-                    if (Reward.Quest != null && await WaitForGameEventAsync(GameEvent.quest_progress))
+                   /* if (Reward.Quest != null && await WaitForGameEventAsync(GameEvent.quest_progress))
                     {
                         Reward.Quest.TotalItems++;
-                    }
+                    }*/
                 }
                 else if ((string)GameEvents[GameEvent.battle_result]["winner"] == "DRAW")
                 {
@@ -1283,6 +1297,14 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
             double timeSinceLastRewardMs = (DateTime.UtcNow - lastRewardTime).TotalMilliseconds;
 
             return Math.Min(captureRate + (timeSinceLastRewardMs / MS_IN_ONE_HOUR), MAX_ENERGY);
+        }
+        
+         private static int GetGlintFromPlayerBalances(JArray playerBalances)
+        {
+            JToken balanceInfo = playerBalances.Where(x => (string)x["token"] == "GLINT").First();
+           int captureGlint = (int)balanceInfo["balance"];
+           return captureGlint;
+            
         }
         private async Task AdvanceLeagueAsync()
         {

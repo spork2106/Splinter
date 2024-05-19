@@ -557,13 +557,13 @@ namespace Ultimate_Splinterlands_Bot_V2
                 {"gloridax", "dragon"}
             };
 
-            LoadCards();
+            //LoadCards();
 
-            Settings.LogSummaryList = new List<(int index, string account, string battleResult, string rating, string ECR, string questStatus)>();
+            Settings.LogSummaryList = new List<(int index, string account, string battleResult, string rating, string ECR, string questStatus,string spsStake)>();
             Settings.oHived = new HiveAPI.CS.CHived(Settings.HttpClient, Settings.HIVE_NODE);
         }
 
-        private static void LoadCards()
+       /* private static void LoadCards()
         {
             var cardsDetailsRaw = File.ReadAllText(Settings.StartupPath + "/data/cardsDetails.json");
             Settings.CardsDetails = JsonConvert.DeserializeObject<DetailedCard[]>(cardsDetailsRaw);
@@ -571,7 +571,7 @@ namespace Ultimate_Splinterlands_Bot_V2
             {
                 return new UserCard(card.id.ToString(), "starter-" + card.id.ToString() + "-" + Helper.GenerateRandomString(5), "1", false, true);
             }).ToArray();
-        }
+        }*/
 
         static void SetStartupPath()
         {

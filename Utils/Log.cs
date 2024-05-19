@@ -79,8 +79,8 @@ namespace Ultimate_Splinterlands_Bot_V2.Utils
         {
             try
             {
-                var t = new TablePrinter("#", "Account", "Result", "Rating", "ECR", "Focus");
-                Settings.LogSummaryList.ForEach(x => t.AddRow(x.index, x.account, x.battleResult, x.rating, x.ECR, x.questStatus));
+                var t = new TablePrinter("#", "Account", "Result", "Rating", "ECR", "GLINTS","SPS");
+                Settings.LogSummaryList.ForEach(x => t.AddRow(x.index, x.account, x.battleResult, x.rating, x.ECR, x.questStatus,x.spsStake));
                 Settings.LogSummaryList.Clear();
                 lock (_ConsoleLock)
                 {
