@@ -284,8 +284,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 var cardQuery = CardsCached.Where(x => x.card_detail_id == (string)team["summoner_id"]);
                 string summoner = cardQuery.Any() ? cardQuery.First().card_long_id : null;
                 string monsters = "";
-                var culoare = (string)Settings.CardsDetails[((int)team["summoner_id"]) - 1].GetstringCardColor();
-                var allucolor = culoare;
+                var allucolor = (string)Settings.CardsDetails[((int)team["summoner_id"]) - 1].GetstringCardColor();
                 for (int i = 0; i < 6; i++)
                 {
                     var cardId = (string)team[$"monster_{i + 1}_id"];
@@ -313,10 +312,10 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     {
                         break;
                     }
-                    var culori = (string)Settings.CardsDetails[((int)team[$"monster_{i + 1}_id"]) - 1].GetstringCardColor();
-					if (culoare == "Gold" && culori !="Gray" && culori !="Gold")
+                    var MonsterColor = (string)Settings.CardsDetails[((int)team[$"monster_{i + 1}_id"]) - 1].GetstringCardColor();
+					if (CardColor == "Gold" && MonsterColor != "Gray" && MonsterColor != "Gold")
 					{
-						allucolor = culori;
+						allucolor = MonsterColor;
 					}
                     monsters += "\"" + monster.card_long_id + "\",";
                 }
@@ -593,35 +592,10 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 LogSummary.QuestStatus = GlintRCached.ToString();
 				LogSummary.SPSStake = SPSCached.ToString();
                 Log.WriteToLog($"{Username}: Deck size: {(CardsCached.Length - 1).ToString().Pastel(Color.Red)} (duplicates filtered)"); // Minus 1 because phantom card array has an empty string in it
-                /*if (Reward.Quest != null)
-                {
-                    // new quests temp workaround
-                    if (Settings.QuestTypes.ContainsKey(Reward.Quest.Name))
-                    {
-                        Log.WriteToLog($"{Username}: Quest element: {Settings.QuestTypes[Reward.Quest.Name].Pastel(Color.Yellow)} " +
-    $"Completed items: {Reward.Quest.CompletedItems.ToString().Pastel(Color.Yellow)}");
-                    }
-                    else
-                    {
-                        Log.WriteToLog($"{Username}: Quest element: {Reward.Quest.Name.Pastel(Color.Yellow)} ");
-                        //Log.WriteToLog($"{Username} has new quest type - the bot will not be updated to play for them until august!", Log.LogType.Warning);
-                    }
-                }
-                else
-                {
-                    // TODO test this and make the bot request a quest on it's own
-                    Log.WriteToLog($"{Username}: Account has no quest! Log in via browser to request one!", Log.LogType.Warning);
-                    Log.WriteToLog($"{Username}: Account has no quest! Log in via browser to request one!", Log.LogType.Warning);
-                    Log.WriteToLog($"{Username}: Account has no quest! Log in via browser to request one!", Log.LogType.Warning);
-                }*/
 
                 await AdvanceLeagueAsync();
                 if (CheckOutOfRc()) return SleepUntil;
-                /*await ClaimQuestRewardAsync();
-                if (CheckOutOfRc()) return SleepUntil;
-                await RequestNewQuestViaAPIAsync();
-                if (CheckOutOfRc()) return SleepUntil;
-*/
+
                 Log.WriteToLog($"{Username}: Current Energy Level is { (ECRCached >= 25 ? ECRCached.ToString("N3").Pastel(Color.Green) : ECRCached.ToString("N3").Pastel(Color.Red)) }");
                 if (ECRCached < Settings.StopBattleBelowECR)
                 {
@@ -840,7 +814,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 {
                     CurrentlyActive = false;
                 }
-                Settings.LogSummaryList.Add((LogSummary.Index, LogSummary.Account, LogSummary.BattleResult, LogSummary.Rating, LogSummary.ECR, LogSummary.QuestStatus,LogSummary.SPSStake));
+                Settings.LogSummaryList.Add((LogSummary.Index, LogSummary.Account, LogSummary.BattleResult, LogSummary.Rating, LogSummary.ECR, LogSummary.QuestStatus, LogSummary.SPSStake));
             }
             return SleepUntil;
         }
@@ -1088,11 +1062,11 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
 
         private async Task ShowBattleResultLegacyAsync(string tx)
         {
-            (int newRating, int ratingChange, decimal decReward, int result,int glint) battleResult = new();
+            (int newRating, int ratingChange, decimal decReward, int result, int glint) battleResult = new();
             for (int i = 0; i < 14; i++)
             {
                 await Task.Delay(6000);
-                battleResult = await SplinterlandsAPI.GetBattleResultAsync(Username, tx,AccessToken);
+                battleResult = await SplinterlandsAPI.GetBattleResultAsync(Username, tx, AccessToken);
                 if (battleResult.result >= 0)
                 {
                     break;
@@ -1169,10 +1143,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 if ((string)GameEvents[GameEvent.battle_result]["winner"] == Username)
                 {
                     battleResult = 1;
-                   /* if (Reward.Quest != null && await WaitForGameEventAsync(GameEvent.quest_progress))
-                    {
-                        Reward.Quest.TotalItems++;
-                    }*/
+               
                 }
                 else if ((string)GameEvents[GameEvent.battle_result]["winner"] == "DRAW")
                 {
@@ -1209,78 +1180,6 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
 
                 LogSummary.Rating = $"{ newRating } ({ ratingChange })";
                 LogSummary.BattleResult = logTextBattleResult;
-            }
-        }
-
-        private async Task ClaimQuestRewardAsync()
-        {
-            try
-            {
-                string logText;
-                // Old quest types
-                if (Reward.Quest != null && Reward.Quest.Name.Length > 10 && Reward.Quest.CompletedItems >= Reward.Quest.TotalItems
-                    && Reward.Quest.Rewards.Type == JTokenType.Null && Reward.Quest.TotalItems > 0)
-                {
-                    logText = "Quest reward can be claimed";
-                    Log.WriteToLog($"{Username}: {logText.Pastel(Color.Green)}");
-                    // short logText:
-                    logText = "Quest reward available!";
-                    if (Settings.ClaimQuestReward)
-                    {
-                        string n = Helper.GenerateRandomString(10);
-                        string json = "{\"type\":\"quest\",\"quest_id\":\"" + Reward.Quest.Id + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-
-                        string tx = BroadcastCustomJsonToHiveNode("sm_claim_reward", json);
-                        if (await WaitForTransactionSuccessAsync(tx, 45))
-                        {
-                            Log.WriteToLog($"{Username}: { "Claimed quest reward:".Pastel(Color.Green) } {tx}");
-                            APICounter = 100; // set api counter to 100 to reload quest
-                        }
-                    }
-                }
-                // Focus quest
-                else if (Reward.Quest != null && Reward.Quest.Rewards.Type == JTokenType.Null && Reward.Quest.TotalItems == 0 && Reward.Quest.IsComplete)
-                {
-                    logText = "Focus quest reward can be claimed";
-                    Log.WriteToLog($"{Username}: {logText.Pastel(Color.Green)}");
-                    // short logText:
-                    logText = "Quest reward available!";
-                    if (Settings.ClaimQuestReward)
-                    {
-                        string n = Helper.GenerateRandomString(10);
-                        string json = "{\"type\":\"quest\",\"quest_id\":\"" + Reward.Quest.Id + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-                        string tx = BroadcastCustomJsonToHiveNode("sm_claim_reward", json);
-
-                        if (await WaitForTransactionSuccessAsync(tx, 45))
-                        {
-                            Log.WriteToLog($"{Username}: { "Claimed focus quest reward:".Pastel(Color.Green) } {tx}");
-                        }
-                    }
-                }
-                else
-                {
-                    Log.WriteToLog($"{Username}: No quest reward to be claimed");
-                    // short logText:
-                    logText = "No quest reward...";
-                }
-
-                if (Reward.Quest != null)
-                {
-                    // temp workaround
-                    if (Settings.QuestTypes.ContainsKey(Reward.Quest.Name))
-                    {
-                        logText = Settings.QuestTypes[Reward.Quest.Name] + ": " + logText;
-                    }
-                    else
-                    {
-                        logText = "unknown quest type";
-                    }
-                }
-                LogSummary.QuestStatus = logText;
-            }
-            catch (Exception ex)
-            {
-                Log.WriteToLog($"{Username}: Error at claiming quest rewards: {ex}", Log.LogType.Error);
             }
         }
 

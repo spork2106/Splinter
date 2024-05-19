@@ -123,7 +123,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Api
                 // Battle not yet finished (= not yet shown in history)?
                 if ((string)matchHistory["battles"][0]["battle_queue_id_1"] != tx && (string)matchHistory["battles"][0]["battle_queue_id_2"] != tx)
                 {
-                    return (-1, -1, -1, -1,-1);
+                    return (-1, -1, -1, -1, -1);
                 }
 
                 int gameResult = 0;
@@ -134,21 +134,21 @@ namespace Ultimate_Splinterlands_Bot_V2.Api
                 {
                     gameResult = 2;
                 }
-var rhsr = JToken.Parse((string)matchHistory["battles"][0]["dec_info"]);
+                var rewardInfo = JToken.Parse((string)matchHistory["battles"][0]["dec_info"]);
                 int newRating = (string)matchHistory["battles"][0]["player_1"] == username ? ((int)matchHistory["battles"][0]["player_1_rating_final"]) :
                     ((int)matchHistory["battles"][0]["player_2_rating_final"]);
                 int ratingChange = (string)matchHistory["battles"][0]["player_1"] == username ? newRating - ((int)matchHistory["battles"][0]["player_1_rating_initial"]) :
                     newRating - ((int)matchHistory["battles"][0]["player_2_rating_initial"]);
                 decimal spsReward = (decimal)matchHistory["battles"][0]["reward_sps"];
-				int glint = Convert.ToInt32((int)rhsr["glint"]);
+				int glint = Convert.ToInt32((int)rewardInfo["glint"]);
 
-                return (newRating, ratingChange, spsReward, gameResult,glint);
+                return (newRating, ratingChange, spsReward, gameResult, glint);
             }
             catch (Exception ex)
             {
                 Log.WriteToLog($"{username}: Could not get battle results from splinterlands API: {ex}", Log.LogType.Error);
             }
-            return (-1, -1, -1, -1,-1);
+            return (-1, -1, -1, -1, -1);
         }
 
         public static async Task<JToken> GetPlayerBalancesAsync(string username)
@@ -187,49 +187,27 @@ var rhsr = JToken.Parse((string)matchHistory["battles"][0]["dec_info"]);
                 }
                 JObject json = JObject.Parse(data);
 
-        // Ensure "unclaimed_balances" exists
-        if (!json.ContainsKey("unclaimed_balances"))
-        {
-            Log.WriteToLog($"{username}: 'unclaimed_balances' key not found in response", Log.LogType.Warning);
-            return 0; // Or handle missing key as needed
-        }
-
-        // Use LINQ for concise and efficient sum calculation
-        decimal totalBalance = json["unclaimed_balances"]
-            .Select(balance => (decimal)balance["balance"])
-            .Sum();
-
-        return totalBalance;
-    }
-    catch (Exception ex)
-    {
-        Log.WriteToLog($"{username}: Could not get balances from splinterlands API: {ex}", Log.LogType.Error);
-        return 0; // Or handle exception as needed
-    }
-		}
-
-        public static async Task<Quest> GetPlayerQuestAsync(string username)
-        {
-            try
-            {
-                string data = await Helper.DownloadPageAsync($"{Settings.SPLINTERLANDS_API_URL}/players/quests?username={ username }");
-                if (data == null || data.Trim().Length < 10 || data.Contains("502 Bad Gateway") || data.Contains("Cannot GET"))
+                // Ensure "unclaimed_balances" exists
+                if (!json.ContainsKey("unclaimed_balances"))
                 {
-                    // Fallback API
-                    await Task.Delay(5000);
-                    Log.WriteToLog($"{username}: Error with splinterlands API for quest, trying fallback api...", Log.LogType.Warning);
-                    data = await Helper.DownloadPageAsync($"{Settings.SPLINTERLANDS_API_URL_FALLBACK}/players/quests?username={ username }");
+                    Log.WriteToLog($"{username}: 'unclaimed_balances' key not found in response", Log.LogType.Warning);
+                    return 0; // Or handle missing key as needed
                 }
 
-                return JsonConvert.DeserializeObject<Quest[]>(data)[0];
+                // Use LINQ for concise and efficient sum calculation
+                decimal totalBalance = json["unclaimed_balances"]
+                    .Select(balance => (decimal)balance["balance"])
+                    .Sum();
 
+                return totalBalance;
             }
+
             catch (Exception ex)
             {
-                Log.WriteToLog($"{username}: Could not get quest from splinterlands API: {ex}", Log.LogType.Error);
+                Log.WriteToLog($"{username}: Could not get balances from splinterlands API: {ex}", Log.LogType.Error);
+                return 0; // Or handle exception as needed
             }
-            return null;
-        }
+		}
 
         public static async Task<UserCard[]> GetPlayerCardsAsync(string username, string accessToken)
         {
@@ -269,9 +247,6 @@ var rhsr = JToken.Parse((string)matchHistory["battles"][0]["dec_info"]);
                 })
                 .Select(x => new UserCard((string)x["card_detail_id"], (string)x["uid"], (string)x["level"], (bool)x["gold"], false))
                 .Distinct().ToArray());
-
-                // add starter cards
-                //cards.AddRange(Settings.StarterCards);
 
                 cards.Sort();
                 cards.Reverse();
