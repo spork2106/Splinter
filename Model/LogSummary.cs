@@ -14,7 +14,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Model
         public string Rating { get; set; }
         public string ECR { get; set; }
         public string QuestStatus { get; set; }
-
+        public string SPSStake { get; set; }
         public LogSummary(int index, string account)
         {
             Index = index;
@@ -28,6 +28,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Model
             Rating = "N/A";
             ECR = "N/A";
             QuestStatus = "N/A";
+            SPSStake = "N/A";
         }
     }
 }
