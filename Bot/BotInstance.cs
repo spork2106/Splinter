@@ -39,7 +39,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
         private int RatingCached { get; set; }
         private double ECRCached { get; set; }
         private int GlintRCached { get; set; }
-		private decimal SPSCached { get; set; }
+        private decimal SPSCached { get; set; }
         private bool OutOfRc{ get; set; }
         private int LossesTotal { get; set; }
         private double DrawsTotal { get; set; }
@@ -313,10 +313,10 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                         break;
                     }
                     var MonsterColor = (string)Settings.CardsDetails[((int)team[$"monster_{i + 1}_id"]) - 1].GetstringCardColor();
-					if (CardColor == "Gold" && MonsterColor != "Gray" && MonsterColor != "Gold")
-					{
-						allucolor = MonsterColor;
-					}
+                    if (CardColor == "Gold" && MonsterColor != "Gray" && MonsterColor != "Gold")
+                    {
+                        allucolor = MonsterColor;
+                    }
                     monsters += "\"" + monster.card_long_id + "\",";
                 }
                 monsters = monsters[..^1];
@@ -331,7 +331,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 string json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"summoner\":\"" + summoner 
                     + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"allyColor\":\"" + allucolor + "\",\"app\":\"" 
                     + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-				
+            
                 //string json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
 
                 COperations.custom_json custom_Json = CreateCustomJson(false, true, "sm_submit_team", json);
@@ -590,7 +590,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 LogSummary.Rating = RatingCached.ToString();
                 LogSummary.ECR = ECRCached.ToString();
                 LogSummary.QuestStatus = GlintRCached.ToString();
-				LogSummary.SPSStake = SPSCached.ToString();
+                LogSummary.SPSStake = SPSCached.ToString();
                 Log.WriteToLog($"{Username}: Deck size: {(CardsCached.Length - 1).ToString().Pastel(Color.Red)} (duplicates filtered)"); // Minus 1 because phantom card array has an empty string in it
 
                 await AdvanceLeagueAsync();
@@ -1093,7 +1093,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 case 1:
                     WinsTotal++;
                     SPSCached += battleResult.decReward;
-					GlintRCached = GlintRCached + battleResult.glint;
+                    GlintRCached = GlintRCached + battleResult.glint;
                     logTextBattleResult = $"You won! Reward: { battleResult.decReward } SPS, {battleResult.glint} GLINT";
                     Log.WriteToLog($"{Username}: { logTextBattleResult.Pastel(Color.Green) }");
                     Log.WriteToLog($"{Username}: New rating is { battleResult.newRating } ({ ("+" + battleResult.ratingChange.ToString()).Pastel(Color.Green) }, {battleResult.glint} GLINT");
@@ -1108,8 +1108,8 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 default:
                     break;
             }
-			LogSummary.QuestStatus = GlintRCached.ToString();
-			LogSummary.SPSStake = SPSCached.ToString();
+            LogSummary.QuestStatus = GlintRCached.ToString();
+            LogSummary.SPSStake = SPSCached.ToString();
             LogSummary.Rating = $"{ battleResult.newRating } ({ battleResult.ratingChange })";
             LogSummary.BattleResult = logTextBattleResult;
         }
@@ -1198,11 +1198,11 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
             return Math.Min(captureRate + (timeSinceLastRewardMs / MS_IN_ONE_HOUR), MAX_ENERGY);
         }
         
-         private static int GetGlintFromPlayerBalances(JArray playerBalances)
+        private static int GetGlintFromPlayerBalances(JArray playerBalances)
         {
             JToken balanceInfo = playerBalances.Where(x => (string)x["token"] == "GLINT").First();
-           int captureGlint = (int)balanceInfo["balance"];
-           return captureGlint;
+            int captureGlint = (int)balanceInfo["balance"];
+            return captureGlint;
             
         }
         private async Task AdvanceLeagueAsync()

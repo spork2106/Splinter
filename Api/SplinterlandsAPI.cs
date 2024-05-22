@@ -140,7 +140,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Api
                 int ratingChange = (string)matchHistory["battles"][0]["player_1"] == username ? newRating - ((int)matchHistory["battles"][0]["player_1_rating_initial"]) :
                     newRating - ((int)matchHistory["battles"][0]["player_2_rating_initial"]);
                 decimal spsReward = (decimal)matchHistory["battles"][0]["reward_sps"];
-				int glint = Convert.ToInt32((int)rewardInfo["glint"]);
+                int glint = Convert.ToInt32((int)rewardInfo["glint"]);
 
                 return (newRating, ratingChange, spsReward, gameResult, glint);
             }
@@ -207,7 +207,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Api
                 Log.WriteToLog($"{username}: Could not get balances from splinterlands API: {ex}", Log.LogType.Error);
                 return 0; // Or handle exception as needed
             }
-		}
+        }
 
         public static async Task<UserCard[]> GetPlayerCardsAsync(string username, string accessToken)
         {
