@@ -329,11 +329,17 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 string monsterClean = monsters.Replace("\"", "");
 
                 string teamHash = Helper.GenerateMD5Hash(summoner + "," + monsterClean + "," + secret);
+                string json = "";
+                if (SummonerColor == "Gold" || SummonerColor == "Gray")
+                    {
 
-                string json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"summoner\":\"" + summoner 
-                    + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"allyColor\":\"" + allucolor + "\",\"app\":\"" 
-                    + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-            
+                    json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"summoner\":\"" + summoner 
+                    + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"allyColor\":\"" + allucolor + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
+                    }
+                    else{
+                        json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"summoner\":\"" + summoner 
+                         + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
+                    }
                 //string json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
                 Log.WriteToLog($"{Username}: json team {json}");
                 COperations.custom_json custom_Json = CreateCustomJson(false, true, "sm_submit_team", json);
@@ -586,11 +592,12 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 LogSummary.ECR = ECRCached.ToString();
                 LogSummary.QuestStatus = GlintRCached.ToString();
                 LogSummary.SPSStake = SPSCached.ToString();
-                Log.WriteToLog($"{Username}: Deck size: {(CardsCached.Length - 1).ToString().Pastel(Color.Red)} (duplicates filtered)"); // Minus 1 because phantom card array has an empty string in it
+                Log.WriteToLog($"{Username}: Deck size: {(CardsCached.Length).ToString().Pastel(Color.Red)} (duplicates filtered)"); // Minus 1 because phantom card array has an empty string in it
 
                 if (CheckOutOfRc()) return SleepUntil;
-
+                Log.WriteToLog($"{Username}: Glint Balance: { (GlintRCached >= 500 ? GlintRCached.ToString().Pastel(Color.Green) : GlintRCached.ToString().Pastel(Color.Red)) } GLINTS");
                 Log.WriteToLog($"{Username}: Current Energy Level is { (ECRCached >= 25 ? ECRCached.ToString("N3").Pastel(Color.Green) : ECRCached.ToString("N3").Pastel(Color.Red)) }");
+                
                 if (ECRCached < Settings.StopBattleBelowECR)
                 {
                     Log.WriteToLog($"{Username}: Energy is below threshold of {Settings.StopBattleBelowECR}% - skipping this account.", Log.LogType.Warning);
@@ -1009,7 +1016,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     GlintRCached = GlintRCached + battleResult.glint;
                     logTextBattleResult = $"You won! Reward: { battleResult.decReward } SPS, {battleResult.glint} GLINT";
                     Log.WriteToLog($"{Username}: { logTextBattleResult.Pastel(Color.Green) }");
-                    Log.WriteToLog($"{Username}: New rating is { battleResult.newRating } ({ ("+" + battleResult.ratingChange.ToString()).Pastel(Color.Green) }, {battleResult.glint} GLINT");
+                    Log.WriteToLog($"{Username}: New rating is { battleResult.newRating } ({ ("+" + battleResult.ratingChange.ToString()).Pastel(Color.Green) }), {battleResult.glint} GLINT");
                     break;
                 case 0:
                     LossesTotal++;

@@ -385,6 +385,9 @@ namespace Ultimate_Splinterlands_Bot_V2
                         case "API_URL":
                             Settings.PublicAPIUrl = temp[1];
                             break;
+                        case "SECOND_API_URL":
+                            Settings.PublicSecondAPIUrl = temp[1];
+                            break;
                         case "HIVE_NODE":
                             Settings.HIVE_NODE = temp[1];
                             break;

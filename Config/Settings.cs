@@ -40,6 +40,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Config
 
         public static bool UseAPI = true;
         public static string PublicAPIUrl = "";
+        public static string PublicSecondAPIUrl = "http://localhost/v2/get_team/";
         public static bool UsePrivateAPI = false;
         public static string PrivateAPIUrl = "";
         public static string PrivateAPIShop= "";
