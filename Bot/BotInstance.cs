@@ -514,13 +514,6 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 CurrentlyActive = true;
             }
 
-            if (Settings.ClaimSeasonReward)
-            {
-                await ClaimSeasonRewardAsync();
-                CheckOutOfRc();
-                return SleepUntil.AddMinutes(30);
-            }
-
             GameEvents.Clear();
             WebsocketAuthenticated = false;
             var wsClient = Settings.LegacyWindowsMode ? null : new WebsocketClient(new Uri(Settings.SPLINTERLANDS_WEBSOCKET_URL));
@@ -594,7 +587,6 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 LogSummary.SPSStake = SPSCached.ToString();
                 Log.WriteToLog($"{Username}: Deck size: {(CardsCached.Length - 1).ToString().Pastel(Color.Red)} (duplicates filtered)"); // Minus 1 because phantom card array has an empty string in it
 
-                await AdvanceLeagueAsync();
                 if (CheckOutOfRc()) return SleepUntil;
 
                 Log.WriteToLog($"{Username}: Current Energy Level is { (ECRCached >= 25 ? ECRCached.ToString("N3").Pastel(Color.Green) : ECRCached.ToString("N3").Pastel(Color.Red)) }");
@@ -875,87 +867,6 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
             APICounter = 999;
         }
 
-        private async Task ClaimSeasonRewardAsync()
-        {
-            try
-            {
-                Log.WriteToLog($"{Username}: Checking for season rewards... ");
-                var bid = "bid_" + Helper.GenerateRandomString(20);
-                var sid = "sid_" + Helper.GenerateRandomString(20);
-                var ts = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds().ToString();
-                var hash = Sha256Manager.GetHash(Encoding.ASCII.GetBytes(Username + ts));
-                var sig = Secp256K1Manager.SignCompressedCompact(hash, CBase58.DecodePrivateWif(PostingKey));
-                var signature = Hex.ToString(sig);
-                var response = await Helper.DownloadPageAsync(Settings.SPLINTERLANDS_API_URL + "/players/login?name=" + Username + "&ref=&browser_id=" + bid + "&session_id=" + sid + "&sig=" + signature + "&ts=" + ts);
-
-                if (response.Contains("maintenance mode") || response.Contains("Too many request"))
-                {
-                    Log.WriteToLog($"{Username}: Error at claiming season rewards: Maintenance mode or IP soft ban - wait 5 minutes!", Log.LogType.Warning);
-                    await Task.Delay(5 * 60 * 1000);
-                    ts = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds().ToString();
-                    hash = Sha256Manager.GetHash(Encoding.ASCII.GetBytes(Username + ts));
-                    sig = Secp256K1Manager.SignCompressedCompact(hash, CBase58.DecodePrivateWif(PostingKey));
-                    signature = Hex.ToString(sig);
-                    response = await Helper.DownloadPageAsync(Settings.SPLINTERLANDS_API_URL + "/players/login?name=" + Username + "&ref=&browser_id=" + bid + "&session_id=" + sid + "&sig=" + signature + "&ts=" + ts);
-                }
-
-                var seasonReward = Helper.DoQuickRegex("\"season_reward\":(.*?)},\"", response);
-                if (seasonReward.StartsWith("{\"reward_packs\":0"))
-                {
-                    Log.WriteToLog($"{Username}: No season reward available!", Log.LogType.Error);
-                }
-                else
-                {
-                    var season = Helper.DoQuickRegex("\"season\":(.*?)\\Z", seasonReward);
-                    if (season.Length <= 1)
-                    {
-                        Log.WriteToLog($"{Username}: Error at claiming season rewards: Could not read season!", Log.LogType.Error);
-                    }
-                    else
-                    {
-                        string n = Helper.GenerateRandomString(10);
-                        string json = "{\"type\":\"league_season\",\"season\":\"" + season + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-                        string tx = BroadcastCustomJsonToHiveNode("sm_claim_reward", json);
-
-                        for (int i = 0; i < 10; i++)
-                        {
-                            await Task.Delay(15000);
-                            var rewardsRaw = await Helper.DownloadPageAsync(Settings.SPLINTERLANDS_API_URL + "/transactions/lookup?trx_id=" + tx);
-                            if (rewardsRaw.Contains(" not found"))
-                            {
-                                continue;
-                            }
-                            else if (rewardsRaw.Contains("as already claimed their rewards from the specified season"))
-                            {
-                                Log.WriteToLog($"{Username}: Rewards already claimed!", Log.LogType.Error);
-                                return;
-                            }
-                            var rewards = JToken.Parse(rewardsRaw)["trx_info"]["result"];
-
-
-                            if (!((string)rewards).Contains("success\":true"))
-                            {
-                                Log.WriteToLog($"{Username}: Error at claiming season rewards: " + (string)rewards, Log.LogType.Error);
-                                return;
-                            }
-                            else if (((string)rewards).Contains("success\":true"))
-                            {
-                                Log.WriteToLog($"{Username}: Successfully claimed season rewards!", Log.LogType.Success);
-                                return;
-                            }
-                            else
-                            {
-
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.WriteToLog($"{Username}: Error at claiming season reward: {ex}", Log.LogType.Error);
-            }
-        }
 
         private string BroadcastCustomJsonToHiveNode(string command, string json, bool postingKey = true, bool activeKey = false)
         {
@@ -1206,56 +1117,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
             return captureGlint;
             
         }
-        private async Task AdvanceLeagueAsync()
-        {
-            try
-            {
-                if (!Settings.AdvanceLeague || RatingCached == -1 || RatingCached < 1000)
-                {
-                    return;
-                }
-
-
-                int highestPossibleLeague = GetMaxLeagueByRankAndPower();
-                int highestPossibleLeagueTier = GetTier(highestPossibleLeague);
-                if (highestPossibleLeague > LeagueCached && highestPossibleLeagueTier <= Settings.MaxLeagueTier)
-                {
-                    Log.WriteToLog($"{Username}: { "Advancing to higher league!".Pastel(Color.Green)}");
-
-                    string n = Helper.GenerateRandomString(10);
-                    string json;
-                    if (Settings.RankedFormat == "MODERN")
-                    {
-                        json = "{\"notify\":\"false\",\"format\":\"modern\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-                    }
-                    else
-                    {
-                        json = "{\"notify\":\"false\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-                    }
-
-                    //CtransactionData oTransaction = Settings.oHived.CreateTransaction(new object[] { custom_Json }, new string[] { PostingKey });
-                    string tx = BroadcastCustomJsonToHiveNode("sm_advance_league", json);
-                    //var postData = GetStringForSplinterlandsAPI(oTransaction);
-                    //string response = HttpWebRequest.WebRequestPost(Settings.CookieContainer, postData, Settings.SPLINTERLANDS_BROADCAST_URL, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:93.0) Gecko/20100101 Firefox/93.0", "https://splinterlands.com/", Encoding.UTF8);
-
-                    //string tx = Helper.DoQuickRegex("id\":\"(.*?)\"", response);
-                    if (await WaitForTransactionSuccessAsync(tx, 45))
-                    {
-                        Log.WriteToLog($"{Username}: { "Advanced league: ".Pastel(Color.Green) } {tx}");
-                        APICounter = 100; // set api counter to 100 to reload details
-                    }
-                    else
-                    {
-                        APICounter = 100;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.WriteToLog($"{Username}: Error at advancing league: {ex}");
-            }
-        }
-    
+        
         private int GetTier(int league)
         {
             // novice
