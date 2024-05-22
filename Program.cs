@@ -556,11 +556,16 @@ namespace Ultimate_Splinterlands_Bot_V2
                 {"rising", "death"},
                 {"gloridax", "dragon"}
             };
-
+            LoadCards();
             Settings.LogSummaryList = new List<(int index, string account, string battleResult, string rating, string ECR, string questStatus, string spsStake)>();
             Settings.oHived = new HiveAPI.CS.CHived(Settings.HttpClient, Settings.HIVE_NODE);
         }
-
+        private static void LoadCards()
+        {
+            var cardsDetailsRaw = File.ReadAllText(Settings.StartupPath + "/data/cardsDetails.json");
+            Settings.CardsDetails = JsonConvert.DeserializeObject<DetailedCard[]>(cardsDetailsRaw);
+            
+        }
         static void SetStartupPath()
         {
             // Setup startup path

@@ -284,7 +284,9 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 var cardQuery = CardsCached.Where(x => x.card_detail_id == (string)team["summoner_id"]);
                 string summoner = cardQuery.Any() ? cardQuery.First().card_long_id : null;
                 string monsters = "";
-                var allucolor = (string)Settings.CardsDetails[((int)team["summoner_id"]) - 1].GetstringCardColor();
+                var SummonerColor = (string)Settings.CardsDetails[((int)team["summoner_id"]) - 1].GetstringCardColor();
+                var allucolor = SummonerColor;
+                
                 for (int i = 0; i < 6; i++)
                 {
                     var cardId = (string)team[$"monster_{i + 1}_id"];
@@ -313,7 +315,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                         break;
                     }
                     var MonsterColor = (string)Settings.CardsDetails[((int)team[$"monster_{i + 1}_id"]) - 1].GetstringCardColor();
-                    if (CardColor == "Gold" && MonsterColor != "Gray" && MonsterColor != "Gold")
+                    if (SummonerColor == "Gold" && MonsterColor != "Gray" && MonsterColor != "Gold")
                     {
                         allucolor = MonsterColor;
                     }
@@ -564,7 +566,6 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     RatingCached = Settings.RankedFormat == "WILD" ? wildRating : modernRating;
                     LeagueCached = Settings.RankedFormat == "WILD" ? wildLeague : modernLeague;
 
-                   // Reward.Quest = await SplinterlandsAPI.GetPlayerQuestAsync(Username);
                     CardsCached = await SplinterlandsAPI.GetPlayerCardsAsync(Username, AccessToken);
                     JArray playerBalances = (JArray)await SplinterlandsAPI.GetPlayerBalancesAsync(Username);
                     ECRCached = GetEnergyFromPlayerBalances(playerBalances);
@@ -1254,45 +1255,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 Log.WriteToLog($"{Username}: Error at advancing league: {ex}");
             }
         }
-        private async Task RequestNewQuestViaAPIAsync()
-        {
-            try
-            {
-                if (!Settings.ClaimQuestReward || PowerCached < Settings.MinimumBattlePower)
-                {
-                    return;
-                }
-                if (Reward.Quest != null && Reward.Quest.IsComplete && Reward.Quest.Name.Length < 11) // name length for old quest
-                {
-                    string n = Helper.GenerateRandomString(10);
-                    string json = "{\"type\":\"daily\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-
-                    string tx = BroadcastCustomJsonToHiveNode("sm_start_quest", json);
-                    Log.WriteToLog($"{Username}: Requesting new quest because midnight (UTC) has passed: {tx}");
-                    await Task.Delay(12500); // wait for splinterlands to refresh the quest
-                    Reward.Quest = await SplinterlandsAPI.GetPlayerQuestAsync(Username);
-                }
-
-                // Check for bad quest
-                if (Reward.Quest != null && Reward.Quest.RefreshTrxID == null 
-                    && Settings.QuestTypes.ContainsKey(Reward.Quest.Name)
-                    && Settings.BadQuests.Contains(Settings.QuestTypes[Reward.Quest.Name]))
-                {
-                    string n = Helper.GenerateRandomString(10);
-                    string json = "{\"type\":\"daily\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-
-                    string tx = BroadcastCustomJsonToHiveNode("sm_refresh_quest", json);
-                    Log.WriteToLog($"{Username}: Requesting new quest because of bad element: {tx}");
-                    await Task.Delay(12500); // wait for splinterlands to refresh the quest
-                    Reward.Quest = await SplinterlandsAPI.GetPlayerQuestAsync(Username);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.WriteToLog($"{Username}: Error at changing quest: {ex}", Log.LogType.Error);
-            }
-        }
-
+    
         private int GetTier(int league)
         {
             // novice
