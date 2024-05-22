@@ -569,7 +569,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     JArray playerBalances = (JArray)await SplinterlandsAPI.GetPlayerBalancesAsync(Username);
                     ECRCached = GetEnergyFromPlayerBalances(playerBalances);
                     GlintRCached = GetGlintFromPlayerBalances(playerBalances);
-					SPSCached = await SplinterlandsAPI.GetTotalUnclaimedBalanceAsync(Username, AccessToken);
+                    SPSCached = await SplinterlandsAPI.GetTotalUnclaimedBalanceAsync(Username, AccessToken);
 
                     if (Settings.UsePrivateAPI)
                     {
