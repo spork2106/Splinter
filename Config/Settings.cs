@@ -51,7 +51,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Config
         public static object PowerTransferBotLock = new();
 
         public static string RankedFormat = "WILD";
-        public static bool PrioritizeQuest = true;
+        public static bool PrioritizeQuest = false;
         public static bool ClaimQuestReward = false;
         public static bool ClaimSeasonReward = false;
         public static bool ShowSpsReward = false;

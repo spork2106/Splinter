@@ -335,10 +335,11 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
             
                 //string json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-
+                Log.WriteToLog($"{Username}: json team {json}");
                 COperations.custom_json custom_Json = CreateCustomJson(false, true, "sm_submit_team", json);
 
                 Log.WriteToLog($"{Username}: Submitting team...");
+                
                 CtransactionData oTransaction = Settings.oHived.CreateTransaction(new object[] { custom_Json }, new string[] { PostingKey });
                 var postData = GetStringForSplinterlandsAPI(oTransaction);
                 var response = HttpWebRequest.WebRequestPost(Settings.CookieContainer, postData, "https://battle.splinterlands.com/battle/battle_tx", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:93.0) Gecko/20100101 Firefox/93.0", "https://splinterlands.com/", Encoding.UTF8);
