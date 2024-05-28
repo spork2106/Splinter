@@ -38,6 +38,8 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
         private int LeagueCached { get; set; }
         private int RatingCached { get; set; }
         private double ECRCached { get; set; }
+        private int GlintRCached { get; set; }
+        private decimal SPSCached { get; set; }
         private bool OutOfRc{ get; set; }
         private int LossesTotal { get; set; }
         private double DrawsTotal { get; set; }
@@ -282,6 +284,9 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 var cardQuery = CardsCached.Where(x => x.card_detail_id == (string)team["summoner_id"]);
                 string summoner = cardQuery.Any() ? cardQuery.First().card_long_id : null;
                 string monsters = "";
+                var SummonerColor = (string)Settings.CardsDetails[((int)team["summoner_id"]) - 1].GetstringCardColor();
+                var allucolor = SummonerColor;
+                
                 for (int i = 0; i < 6; i++)
                 {
                     var cardId = (string)team[$"monster_{i + 1}_id"];
@@ -309,7 +314,11 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     {
                         break;
                     }
-
+                    var MonsterColor = (string)Settings.CardsDetails[((int)team[$"monster_{i + 1}_id"]) - 1].GetstringCardColor();
+                    if (SummonerColor == "Gold" && MonsterColor != "Gray" && MonsterColor != "Gold")
+                    {
+                        allucolor = MonsterColor;
+                    }
                     monsters += "\"" + monster.card_long_id + "\",";
                 }
                 monsters = monsters[..^1];
@@ -320,16 +329,23 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 string monsterClean = monsters.Replace("\"", "");
 
                 string teamHash = Helper.GenerateMD5Hash(summoner + "," + monsterClean + "," + secret);
+                string json = "";
+                if (SummonerColor == "Gold" || SummonerColor == "Gray")
+                    {
 
-                string json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"summoner\":\"" + summoner 
-                    + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"app\":\"" 
-                    + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-                
+                    json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"summoner\":\"" + summoner 
+                    + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"allyColor\":\"" + allucolor + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
+                    }
+                    else{
+                    json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"summoner\":\"" + summoner 
+                    + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
+                    }
                 //string json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-
+                Log.WriteToLog($"{Username}: json team {json}");
                 COperations.custom_json custom_Json = CreateCustomJson(false, true, "sm_submit_team", json);
 
                 Log.WriteToLog($"{Username}: Submitting team...");
+                
                 CtransactionData oTransaction = Settings.oHived.CreateTransaction(new object[] { custom_Json }, new string[] { PostingKey });
                 var postData = GetStringForSplinterlandsAPI(oTransaction);
                 var response = HttpWebRequest.WebRequestPost(Settings.CookieContainer, postData, "https://battle.splinterlands.com/battle/battle_tx", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:93.0) Gecko/20100101 Firefox/93.0", "https://splinterlands.com/", Encoding.UTF8);
@@ -505,13 +521,6 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 CurrentlyActive = true;
             }
 
-            if (Settings.ClaimSeasonReward)
-            {
-                await ClaimSeasonRewardAsync();
-                CheckOutOfRc();
-                return SleepUntil.AddMinutes(30);
-            }
-
             GameEvents.Clear();
             WebsocketAuthenticated = false;
             var wsClient = Settings.LegacyWindowsMode ? null : new WebsocketClient(new Uri(Settings.SPLINTERLANDS_WEBSOCKET_URL));
@@ -557,10 +566,11 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     RatingCached = Settings.RankedFormat == "WILD" ? wildRating : modernRating;
                     LeagueCached = Settings.RankedFormat == "WILD" ? wildLeague : modernLeague;
 
-                    Reward.Quest = await SplinterlandsAPI.GetPlayerQuestAsync(Username);
                     CardsCached = await SplinterlandsAPI.GetPlayerCardsAsync(Username, AccessToken);
                     JArray playerBalances = (JArray)await SplinterlandsAPI.GetPlayerBalancesAsync(Username);
                     ECRCached = GetEnergyFromPlayerBalances(playerBalances);
+                    GlintRCached = GetGlintFromPlayerBalances(playerBalances);
+                    SPSCached = await SplinterlandsAPI.GetTotalUnclaimedBalanceAsync(Username, AccessToken);
 
                     if (Settings.UsePrivateAPI)
                     {
@@ -580,38 +590,14 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
 
                 LogSummary.Rating = RatingCached.ToString();
                 LogSummary.ECR = ECRCached.ToString();
+                LogSummary.QuestStatus = GlintRCached.ToString();
+                LogSummary.SPSStake = SPSCached.ToString();
+                Log.WriteToLog($"{Username}: Deck size: {(CardsCached.Length).ToString().Pastel(Color.Red)} (duplicates filtered)"); // Minus 1 because phantom card array has an empty string in it
 
-                Log.WriteToLog($"{Username}: Deck size: {(CardsCached.Length - 1).ToString().Pastel(Color.Red)} (duplicates filtered)"); // Minus 1 because phantom card array has an empty string in it
-                if (Reward.Quest != null)
-                {
-                    // new quests temp workaround
-                    if (Settings.QuestTypes.ContainsKey(Reward.Quest.Name))
-                    {
-                        Log.WriteToLog($"{Username}: Quest element: {Settings.QuestTypes[Reward.Quest.Name].Pastel(Color.Yellow)} " +
-    $"Completed items: {Reward.Quest.CompletedItems.ToString().Pastel(Color.Yellow)}");
-                    }
-                    else
-                    {
-                        Log.WriteToLog($"{Username}: Quest element: {Reward.Quest.Name.Pastel(Color.Yellow)} ");
-                        //Log.WriteToLog($"{Username} has new quest type - the bot will not be updated to play for them until august!", Log.LogType.Warning);
-                    }
-                }
-                else
-                {
-                    // TODO test this and make the bot request a quest on it's own
-                    Log.WriteToLog($"{Username}: Account has no quest! Log in via browser to request one!", Log.LogType.Warning);
-                    Log.WriteToLog($"{Username}: Account has no quest! Log in via browser to request one!", Log.LogType.Warning);
-                    Log.WriteToLog($"{Username}: Account has no quest! Log in via browser to request one!", Log.LogType.Warning);
-                }
-
-                await AdvanceLeagueAsync();
                 if (CheckOutOfRc()) return SleepUntil;
-                await ClaimQuestRewardAsync();
-                if (CheckOutOfRc()) return SleepUntil;
-                await RequestNewQuestViaAPIAsync();
-                if (CheckOutOfRc()) return SleepUntil;
-
+                Log.WriteToLog($"{Username}: Glint Balance: { (GlintRCached >= 500 ? GlintRCached.ToString().Pastel(Color.Green) : GlintRCached.ToString().Pastel(Color.Red)) } GLINTS");
                 Log.WriteToLog($"{Username}: Current Energy Level is { (ECRCached >= 25 ? ECRCached.ToString("N3").Pastel(Color.Green) : ECRCached.ToString("N3").Pastel(Color.Red)) }");
+                
                 if (ECRCached < Settings.StopBattleBelowECR)
                 {
                     Log.WriteToLog($"{Username}: Energy is below threshold of {Settings.StopBattleBelowECR}% - skipping this account.", Log.LogType.Warning);
@@ -829,7 +815,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 {
                     CurrentlyActive = false;
                 }
-                Settings.LogSummaryList.Add((LogSummary.Index, LogSummary.Account, LogSummary.BattleResult, LogSummary.Rating, LogSummary.ECR, LogSummary.QuestStatus));
+                Settings.LogSummaryList.Add((LogSummary.Index, LogSummary.Account, LogSummary.BattleResult, LogSummary.Rating, LogSummary.ECR, LogSummary.QuestStatus, LogSummary.SPSStake));
             }
             return SleepUntil;
         }
@@ -889,87 +875,6 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
             APICounter = 999;
         }
 
-        private async Task ClaimSeasonRewardAsync()
-        {
-            try
-            {
-                Log.WriteToLog($"{Username}: Checking for season rewards... ");
-                var bid = "bid_" + Helper.GenerateRandomString(20);
-                var sid = "sid_" + Helper.GenerateRandomString(20);
-                var ts = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds().ToString();
-                var hash = Sha256Manager.GetHash(Encoding.ASCII.GetBytes(Username + ts));
-                var sig = Secp256K1Manager.SignCompressedCompact(hash, CBase58.DecodePrivateWif(PostingKey));
-                var signature = Hex.ToString(sig);
-                var response = await Helper.DownloadPageAsync(Settings.SPLINTERLANDS_API_URL + "/players/login?name=" + Username + "&ref=&browser_id=" + bid + "&session_id=" + sid + "&sig=" + signature + "&ts=" + ts);
-
-                if (response.Contains("maintenance mode") || response.Contains("Too many request"))
-                {
-                    Log.WriteToLog($"{Username}: Error at claiming season rewards: Maintenance mode or IP soft ban - wait 5 minutes!", Log.LogType.Warning);
-                    await Task.Delay(5 * 60 * 1000);
-                    ts = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds().ToString();
-                    hash = Sha256Manager.GetHash(Encoding.ASCII.GetBytes(Username + ts));
-                    sig = Secp256K1Manager.SignCompressedCompact(hash, CBase58.DecodePrivateWif(PostingKey));
-                    signature = Hex.ToString(sig);
-                    response = await Helper.DownloadPageAsync(Settings.SPLINTERLANDS_API_URL + "/players/login?name=" + Username + "&ref=&browser_id=" + bid + "&session_id=" + sid + "&sig=" + signature + "&ts=" + ts);
-                }
-
-                var seasonReward = Helper.DoQuickRegex("\"season_reward\":(.*?)},\"", response);
-                if (seasonReward.StartsWith("{\"reward_packs\":0"))
-                {
-                    Log.WriteToLog($"{Username}: No season reward available!", Log.LogType.Error);
-                }
-                else
-                {
-                    var season = Helper.DoQuickRegex("\"season\":(.*?)\\Z", seasonReward);
-                    if (season.Length <= 1)
-                    {
-                        Log.WriteToLog($"{Username}: Error at claiming season rewards: Could not read season!", Log.LogType.Error);
-                    }
-                    else
-                    {
-                        string n = Helper.GenerateRandomString(10);
-                        string json = "{\"type\":\"league_season\",\"season\":\"" + season + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-                        string tx = BroadcastCustomJsonToHiveNode("sm_claim_reward", json);
-
-                        for (int i = 0; i < 10; i++)
-                        {
-                            await Task.Delay(15000);
-                            var rewardsRaw = await Helper.DownloadPageAsync(Settings.SPLINTERLANDS_API_URL + "/transactions/lookup?trx_id=" + tx);
-                            if (rewardsRaw.Contains(" not found"))
-                            {
-                                continue;
-                            }
-                            else if (rewardsRaw.Contains("as already claimed their rewards from the specified season"))
-                            {
-                                Log.WriteToLog($"{Username}: Rewards already claimed!", Log.LogType.Error);
-                                return;
-                            }
-                            var rewards = JToken.Parse(rewardsRaw)["trx_info"]["result"];
-
-
-                            if (!((string)rewards).Contains("success\":true"))
-                            {
-                                Log.WriteToLog($"{Username}: Error at claiming season rewards: " + (string)rewards, Log.LogType.Error);
-                                return;
-                            }
-                            else if (((string)rewards).Contains("success\":true"))
-                            {
-                                Log.WriteToLog($"{Username}: Successfully claimed season rewards!", Log.LogType.Success);
-                                return;
-                            }
-                            else
-                            {
-
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.WriteToLog($"{Username}: Error at claiming season reward: {ex}", Log.LogType.Error);
-            }
-        }
 
         private string BroadcastCustomJsonToHiveNode(string command, string json, bool postingKey = true, bool activeKey = false)
         {
@@ -1077,10 +982,11 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
 
         private async Task ShowBattleResultLegacyAsync(string tx)
         {
-            (int newRating, int ratingChange, decimal decReward, int result) battleResult = new();
+            (int newRating, int ratingChange, decimal decReward, int result, int glint) battleResult = new();
             for (int i = 0; i < 14; i++)
             {
                 await Task.Delay(6000);
+
                 battleResult = await SplinterlandsAPI.GetBattleResultAsync(Username, AccessToken, tx);
                 if (battleResult.result >= 0)
                 {
@@ -1107,9 +1013,11 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     break;
                 case 1:
                     WinsTotal++;
-                    logTextBattleResult = $"You won! Reward: { battleResult.decReward } SPS";
+                    SPSCached += battleResult.decReward;
+                    GlintRCached = GlintRCached + battleResult.glint;
+                    logTextBattleResult = $"You won! Reward: { battleResult.decReward } SPS, {battleResult.glint} GLINT";
                     Log.WriteToLog($"{Username}: { logTextBattleResult.Pastel(Color.Green) }");
-                    Log.WriteToLog($"{Username}: New rating is { battleResult.newRating } ({ ("+" + battleResult.ratingChange.ToString()).Pastel(Color.Green) })");
+                    Log.WriteToLog($"{Username}: New rating is { battleResult.newRating } ({ ("+" + battleResult.ratingChange.ToString()).Pastel(Color.Green) }), {battleResult.glint} GLINT");
                     break;
                 case 0:
                     LossesTotal++;
@@ -1121,7 +1029,8 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 default:
                     break;
             }
-
+            LogSummary.QuestStatus = GlintRCached.ToString();
+            LogSummary.SPSStake = SPSCached.ToString();
             LogSummary.Rating = $"{ battleResult.newRating } ({ battleResult.ratingChange })";
             LogSummary.BattleResult = logTextBattleResult;
         }
@@ -1155,10 +1064,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                 if ((string)GameEvents[GameEvent.battle_result]["winner"] == Username)
                 {
                     battleResult = 1;
-                    if (Reward.Quest != null && await WaitForGameEventAsync(GameEvent.quest_progress))
-                    {
-                        Reward.Quest.TotalItems++;
-                    }
+               
                 }
                 else if ((string)GameEvents[GameEvent.battle_result]["winner"] == "DRAW")
                 {
@@ -1198,78 +1104,6 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
             }
         }
 
-        private async Task ClaimQuestRewardAsync()
-        {
-            try
-            {
-                string logText;
-                // Old quest types
-                if (Reward.Quest != null && Reward.Quest.Name.Length > 10 && Reward.Quest.CompletedItems >= Reward.Quest.TotalItems
-                    && Reward.Quest.Rewards.Type == JTokenType.Null && Reward.Quest.TotalItems > 0)
-                {
-                    logText = "Quest reward can be claimed";
-                    Log.WriteToLog($"{Username}: {logText.Pastel(Color.Green)}");
-                    // short logText:
-                    logText = "Quest reward available!";
-                    if (Settings.ClaimQuestReward)
-                    {
-                        string n = Helper.GenerateRandomString(10);
-                        string json = "{\"type\":\"quest\",\"quest_id\":\"" + Reward.Quest.Id + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-
-                        string tx = BroadcastCustomJsonToHiveNode("sm_claim_reward", json);
-                        if (await WaitForTransactionSuccessAsync(tx, 45))
-                        {
-                            Log.WriteToLog($"{Username}: { "Claimed quest reward:".Pastel(Color.Green) } {tx}");
-                            APICounter = 100; // set api counter to 100 to reload quest
-                        }
-                    }
-                }
-                // Focus quest
-                else if (Reward.Quest != null && Reward.Quest.Rewards.Type == JTokenType.Null && Reward.Quest.TotalItems == 0 && Reward.Quest.IsComplete)
-                {
-                    logText = "Focus quest reward can be claimed";
-                    Log.WriteToLog($"{Username}: {logText.Pastel(Color.Green)}");
-                    // short logText:
-                    logText = "Quest reward available!";
-                    if (Settings.ClaimQuestReward)
-                    {
-                        string n = Helper.GenerateRandomString(10);
-                        string json = "{\"type\":\"quest\",\"quest_id\":\"" + Reward.Quest.Id + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-                        string tx = BroadcastCustomJsonToHiveNode("sm_claim_reward", json);
-
-                        if (await WaitForTransactionSuccessAsync(tx, 45))
-                        {
-                            Log.WriteToLog($"{Username}: { "Claimed focus quest reward:".Pastel(Color.Green) } {tx}");
-                        }
-                    }
-                }
-                else
-                {
-                    Log.WriteToLog($"{Username}: No quest reward to be claimed");
-                    // short logText:
-                    logText = "No quest reward...";
-                }
-
-                if (Reward.Quest != null)
-                {
-                    // temp workaround
-                    if (Settings.QuestTypes.ContainsKey(Reward.Quest.Name))
-                    {
-                        logText = Settings.QuestTypes[Reward.Quest.Name] + ": " + logText;
-                    }
-                    else
-                    {
-                        logText = "unknown quest type";
-                    }
-                }
-                LogSummary.QuestStatus = logText;
-            }
-            catch (Exception ex)
-            {
-                Log.WriteToLog($"{Username}: Error at claiming quest rewards: {ex}", Log.LogType.Error);
-            }
-        }
-
         private static double GetEnergyFromPlayerBalances(JArray playerBalances)
         {
             const int MS_IN_ONE_HOUR = 1000 * 60 * 60;
@@ -1284,94 +1118,15 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
 
             return Math.Min(captureRate + (timeSinceLastRewardMs / MS_IN_ONE_HOUR), MAX_ENERGY);
         }
-        private async Task AdvanceLeagueAsync()
+        
+        private static int GetGlintFromPlayerBalances(JArray playerBalances)
         {
-            try
-            {
-                if (!Settings.AdvanceLeague || RatingCached == -1 || RatingCached < 1000)
-                {
-                    return;
-                }
-
-
-                int highestPossibleLeague = GetMaxLeagueByRankAndPower();
-                int highestPossibleLeagueTier = GetTier(highestPossibleLeague);
-                if (highestPossibleLeague > LeagueCached && highestPossibleLeagueTier <= Settings.MaxLeagueTier)
-                {
-                    Log.WriteToLog($"{Username}: { "Advancing to higher league!".Pastel(Color.Green)}");
-
-                    string n = Helper.GenerateRandomString(10);
-                    string json;
-                    if (Settings.RankedFormat == "MODERN")
-                    {
-                        json = "{\"notify\":\"false\",\"format\":\"modern\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-                    }
-                    else
-                    {
-                        json = "{\"notify\":\"false\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-                    }
-
-                    //CtransactionData oTransaction = Settings.oHived.CreateTransaction(new object[] { custom_Json }, new string[] { PostingKey });
-                    string tx = BroadcastCustomJsonToHiveNode("sm_advance_league", json);
-                    //var postData = GetStringForSplinterlandsAPI(oTransaction);
-                    //string response = HttpWebRequest.WebRequestPost(Settings.CookieContainer, postData, Settings.SPLINTERLANDS_BROADCAST_URL, "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:93.0) Gecko/20100101 Firefox/93.0", "https://splinterlands.com/", Encoding.UTF8);
-
-                    //string tx = Helper.DoQuickRegex("id\":\"(.*?)\"", response);
-                    if (await WaitForTransactionSuccessAsync(tx, 45))
-                    {
-                        Log.WriteToLog($"{Username}: { "Advanced league: ".Pastel(Color.Green) } {tx}");
-                        APICounter = 100; // set api counter to 100 to reload details
-                    }
-                    else
-                    {
-                        APICounter = 100;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.WriteToLog($"{Username}: Error at advancing league: {ex}");
-            }
+            JToken balanceInfo = playerBalances.Where(x => (string)x["token"] == "GLINT").First();
+            int captureGlint = (int)balanceInfo["balance"];
+            return captureGlint;
+            
         }
-        private async Task RequestNewQuestViaAPIAsync()
-        {
-            try
-            {
-                if (!Settings.ClaimQuestReward || PowerCached < Settings.MinimumBattlePower)
-                {
-                    return;
-                }
-                if (Reward.Quest != null && Reward.Quest.IsComplete && Reward.Quest.Name.Length < 11) // name length for old quest
-                {
-                    string n = Helper.GenerateRandomString(10);
-                    string json = "{\"type\":\"daily\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-
-                    string tx = BroadcastCustomJsonToHiveNode("sm_start_quest", json);
-                    Log.WriteToLog($"{Username}: Requesting new quest because midnight (UTC) has passed: {tx}");
-                    await Task.Delay(12500); // wait for splinterlands to refresh the quest
-                    Reward.Quest = await SplinterlandsAPI.GetPlayerQuestAsync(Username);
-                }
-
-                // Check for bad quest
-                if (Reward.Quest != null && Reward.Quest.RefreshTrxID == null 
-                    && Settings.QuestTypes.ContainsKey(Reward.Quest.Name)
-                    && Settings.BadQuests.Contains(Settings.QuestTypes[Reward.Quest.Name]))
-                {
-                    string n = Helper.GenerateRandomString(10);
-                    string json = "{\"type\":\"daily\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
-
-                    string tx = BroadcastCustomJsonToHiveNode("sm_refresh_quest", json);
-                    Log.WriteToLog($"{Username}: Requesting new quest because of bad element: {tx}");
-                    await Task.Delay(12500); // wait for splinterlands to refresh the quest
-                    Reward.Quest = await SplinterlandsAPI.GetPlayerQuestAsync(Username);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.WriteToLog($"{Username}: Error at changing quest: {ex}", Log.LogType.Error);
-            }
-        }
-
+        
         private int GetTier(int league)
         {
             // novice

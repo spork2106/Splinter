@@ -385,6 +385,9 @@ namespace Ultimate_Splinterlands_Bot_V2
                         case "API_URL":
                             Settings.PublicAPIUrl = temp[1];
                             break;
+                        case "SECOND_API_URL":
+                            Settings.PublicSecondAPIUrl = temp[1];
+                            break;
                         case "HIVE_NODE":
                             Settings.HIVE_NODE = temp[1];
                             break;
@@ -556,23 +559,16 @@ namespace Ultimate_Splinterlands_Bot_V2
                 {"rising", "death"},
                 {"gloridax", "dragon"}
             };
-
             LoadCards();
-
-            Settings.LogSummaryList = new List<(int index, string account, string battleResult, string rating, string ECR, string questStatus)>();
+            Settings.LogSummaryList = new List<(int index, string account, string battleResult, string rating, string ECR, string questStatus, string spsStake)>();
             Settings.oHived = new HiveAPI.CS.CHived(Settings.HttpClient, Settings.HIVE_NODE);
         }
-
         private static void LoadCards()
         {
             var cardsDetailsRaw = File.ReadAllText(Settings.StartupPath + "/data/cardsDetails.json");
             Settings.CardsDetails = JsonConvert.DeserializeObject<DetailedCard[]>(cardsDetailsRaw);
-            Settings.StarterCards = Settings.CardsDetails.Where(card => card.rarity <= 2 && Settings.STARTER_EDITIONS.Contains(card.editions)).Select(card =>
-            {
-                return new UserCard(card.id.ToString(), "starter-" + card.id.ToString() + "-" + Helper.GenerateRandomString(5), "1", false, true);
-            }).ToArray();
+            
         }
-
         static void SetStartupPath()
         {
             // Setup startup path

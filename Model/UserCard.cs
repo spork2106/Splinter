@@ -13,30 +13,28 @@ namespace Ultimate_Splinterlands_Bot_V2.Model
         public string card_detail_id { get; init; }
         public string level { get; init; }
         public bool gold { get; init; }
-        public bool starter { get; init; }
 
         [JsonIgnore]
         public string card_long_id { get; init; }
         [JsonIgnore]
         public bool IsSummoner { get; init; }
 
-        public UserCard(string cardId, string _card_long_id, string _level, bool _gold, bool _starter)
+        public UserCard(string cardId, string _card_long_id, string _level, bool _gold)
         {
             card_detail_id = cardId;
             card_long_id = _card_long_id;
             level = _level;
             gold = _gold;
-            starter = _starter;
             IsSummoner = Settings.CardsDetails[Convert.ToInt32(cardId) - 1].IsSummoner();
         }
 
-        public UserCard(string cardId, string _card_long_id, string _level, bool _gold, bool _starter, bool _summoner)
+        public UserCard(string cardId, string _card_long_id, string _level, bool _gold, bool _summoner)
         {
             card_detail_id = cardId;
             card_long_id = _card_long_id;
             level = _level;
             gold = _gold;
-            starter = _starter;
+            
             IsSummoner = _summoner;
         }
 
@@ -56,18 +54,8 @@ namespace Ultimate_Splinterlands_Bot_V2.Model
                 {
                     if (this.gold == otherCard.gold)
                     {
-                        if (this.starter == otherCard.starter)
-                        {
                             return 0;
-                        }
-                        else if (!this.starter && otherCard.starter)
-                        {
-                            return 1;
-                        }
-                        else
-                        {
-                            return -1;
-                        }
+            
                     }
                     else if (this.gold)
                     {

@@ -204,11 +204,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Api
                         new JProperty("rules", rules),
                         new JProperty("splinters", splinters),
                         new JProperty("myCardsV2", JsonConvert.SerializeObject(cards)),
-                        new JProperty("focus", 
-                            Settings.PrioritizeQuest 
-                            && (!Settings.CardSettings.DISABLE_FOCUS_PRIORITY_BEFORE_CHEST_LEAGUE_RATING || chestTierReached) 
-                            && quest != null && !quest.IsComplete && Settings.QuestTypes.ContainsKey(quest.Name)
-                                ? Settings.QuestTypes[quest.Name] : ""),
+                        new JProperty("focus", ""),
                         new JProperty("chest_tier_reached", chestTierReached),
                         new JProperty("card_settings", Settings.CardSettings.USE_CARD_SETTINGS ? JsonConvert.SerializeObject(Settings.CardSettings) : "")
                     );
@@ -274,52 +270,49 @@ namespace Ultimate_Splinterlands_Bot_V2.Api
             {
                 bool chestTierReached = quest != null && quest.ChestTier != null && chestTier >= quest.ChestTier;
                 JObject matchDetails = new(
+						new JProperty("user", username),
                         new JProperty("mana", mana),
                         new JProperty("rules", rules),
                         new JProperty("splinters", splinters),
                         new JProperty("myCardsV2", JsonConvert.SerializeObject(cards)),
-                        new JProperty("focus",
-                            Settings.PrioritizeQuest
-                            && (!Settings.CardSettings.DISABLE_FOCUS_PRIORITY_BEFORE_CHEST_LEAGUE_RATING || chestTierReached)
-                            && quest != null && !quest.IsComplete && Settings.QuestTypes.ContainsKey(quest.Name)
-                                ? Settings.QuestTypes[quest.Name] : ""),
+                        new JProperty("focus",""),
                         new JProperty("chest_tier_reached", chestTierReached),
                         new JProperty("card_settings", Settings.CardSettings.USE_CARD_SETTINGS ? JsonConvert.SerializeObject(Settings.CardSettings) : "")
                     );
-
-                string urlGetTeam = $"{Settings.PublicAPIUrl}get_team/{Settings.RankedFormat.ToLower()}/{rating}";
-                APIResponse = await PostJSONToApi(matchDetails, urlGetTeam, username);
-
+                if (secondTry)
+                {
+                    Log.WriteToLog($"{username}: Requesting team from local API... Error (secondTry)", Log.LogType.Warning);
+                    string urlGetTeamlocal = $"{Settings.PublicSecondAPIUrl}{rating}";
+                    APIResponse = await PostJSONToApi(matchDetails, urlGetTeamlocal, username);
+                }
+                else
+                {
+                    string urlGetTeam = $"{Settings.PublicAPIUrl}get_team/{Settings.RankedFormat.ToLower()}/{rating}";
+                    APIResponse = await PostJSONToApi(matchDetails, urlGetTeam, username);
+                    
+                }
                 if (APIResponse.Contains("api limit reached"))
                 {
                     if (APIResponse.Contains("overload"))
                     {
-                        Log.WriteToLog($"{username}: API Overloaded! Waiting 25 seconds and trying again after...", Log.LogType.Warning);
-                        System.Threading.Thread.Sleep(25000);
-                        return await GetTeamFromPublicAPIV3Async(rating, mana, rules, splinters, cards, quest, chestTier, username, true);
-                    }
-                    else
-                    {
-                        var sw = new Stopwatch();
-                        sw.Start();
-                        Log.WriteToLog($"{username}: API Rate Limit reached! Waiting until no longer blocked...", Log.LogType.Warning);
-                        await CheckRateLimitLoopAsync(username, Settings.PublicAPIUrl);
-                        sw.Stop();
-                        // return null so team doesn't get submitted
-                        if (sw.Elapsed.TotalSeconds > 200)
-                        {
-                            return null;
-                        }
+                    Log.WriteToLog($"{username}: Requesting team from local API... Public overload", Log.LogType.Warning);
+                    string urlGetTeamlocal = $"{Settings.PublicSecondAPIUrl}{rating}";
+                    APIResponse = await PostJSONToApi(matchDetails, urlGetTeamlocal, username);
                     }
                 }
-
-                Log.WriteToLog("API Response: " + JsonConvert.SerializeObject(matchDetails), debugOnly: true);
+                if (APIResponse.Contains("(Ignored 1st ruleset)"))
+                {
+                    Log.WriteToLog($"{username}: Requesting team from local API... Ignored 1st ruleset", Log.LogType.Warning);
+                    string urlGetTeamlocal = $"{Settings.PublicSecondAPIUrl}{rating}";
+                    APIResponse = await PostJSONToApi(matchDetails, urlGetTeamlocal, username);
+                }
+                Log.WriteToLog("API Response: " + APIResponse, debugOnly: true);
                 if (APIResponse == null || APIResponse.Length < 5 || APIResponse.Contains("hash"))
                 {
-                    Log.WriteToLog($"{username}: API Error: Response was empty", Log.LogType.CriticalError);
-                    return null;
-                }
+                    Log.WriteToLog($"{username}: Public API Error: Response was empty", Log.LogType.CriticalError);
+					return await GetTeamFromPublicAPIV3Async(rating, mana, rules, splinters, cards, quest, chestTier, username, true);
 
+                }
                 return JToken.Parse(APIResponse);
             }
             catch (Exception ex)
@@ -333,6 +326,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Api
                 }
                 else if (secondTry)
                 {
+					
                     Log.WriteToLog($"{username}: API overloaded or down?: Waiting 10 minutes...", Log.LogType.Warning);
                     await Task.Delay(1000 * 60 * 10);
                     return await GetTeamFromPublicAPIV3Async(rating, mana, rules, splinters, cards, quest, chestTier, username, true);
@@ -350,11 +344,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Api
                         new JProperty("mana", mana),
                         new JProperty("rules", rules),
                         new JProperty("splinters", splinters),
-                        new JProperty("focus",
-                            Settings.PrioritizeQuest
-                            && (!Settings.CardSettings.DISABLE_FOCUS_PRIORITY_BEFORE_CHEST_LEAGUE_RATING || chestTierReached)
-                            && quest != null && !quest.IsComplete && Settings.QuestTypes.ContainsKey(quest.Name)
-                                ? Settings.QuestTypes[quest.Name] : ""),
+                        new JProperty("focus", ""),
                         new JProperty("chest_tier_reached", chestTierReached),
                         new JProperty("card_settings", Settings.CardSettings.USE_CARD_SETTINGS ? JsonConvert.SerializeObject(Settings.CardSettings) : "")
                     );
@@ -427,11 +417,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Api
                         new JProperty("mana", mana),
                         new JProperty("rules", rules),
                         new JProperty("splinters", splinters),
-                        new JProperty("focus",
-                            Settings.PrioritizeQuest
-                            && (!Settings.CardSettings.DISABLE_FOCUS_PRIORITY_BEFORE_CHEST_LEAGUE_RATING || chestTierReached)
-                            && quest != null && !quest.IsComplete && Settings.QuestTypes.ContainsKey(quest.Name)
-                                ? Settings.QuestTypes[quest.Name] : ""),
+                        new JProperty("focus", ""),
                         new JProperty("chest_tier_reached", chestTierReached),
                         new JProperty("card_settings", Settings.CardSettings.USE_CARD_SETTINGS ? JsonConvert.SerializeObject(Settings.CardSettings) : "")
                     );

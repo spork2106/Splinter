@@ -40,6 +40,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Config
 
         public static bool UseAPI = true;
         public static string PublicAPIUrl = "";
+        public static string PublicSecondAPIUrl = "http://localhost/v2/get_team/";
         public static bool UsePrivateAPI = false;
         public static string PrivateAPIUrl = "";
         public static string PrivateAPIShop= "";
@@ -51,7 +52,7 @@ namespace Ultimate_Splinterlands_Bot_V2.Config
         public static object PowerTransferBotLock = new();
 
         public static string RankedFormat = "WILD";
-        public static bool PrioritizeQuest = true;
+        public static bool PrioritizeQuest = false;
         public static bool ClaimQuestReward = false;
         public static bool ClaimSeasonReward = false;
         public static bool ShowSpsReward = false;
@@ -67,12 +68,11 @@ namespace Ultimate_Splinterlands_Bot_V2.Config
         public static bool RateLimited = false;
         public static object RateLimitedLock = new();
         public static List<BotInstance> BotInstances { get; set; }
-        public static List<(int index, string account, string battleResult, string rating, string ECR, string questStatus)> LogSummaryList { get; set; }
+        public static List<(int index, string account, string battleResult, string rating, string ECR, string questStatus, string spsStake)> LogSummaryList { get; set; }
 
         public static HttpClient HttpClient;
         public static CHived oHived;
 
-        public static readonly string[] STARTER_EDITIONS = new string[] { "7", "12" };
         public static DetailedCard[] CardsDetails;
         public static UserCard[] StarterCards;
         public static Dictionary<string, string> QuestTypes;

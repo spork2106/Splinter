@@ -19,7 +19,7 @@ namespace Splinterlands_Battle_REST_API.Model
         // public int drop_rate { get; set; }
         //public Stats stats { get; set; }
         public Stats stats { get; set; }
-        public bool is_starter { get; set; }
+       // public bool is_starter { get; set; }
         public string editions { get; set; }
         // public int? created_block_num { get; set; }
         // public string last_update_tx { get; set; }
@@ -46,7 +46,10 @@ namespace Splinterlands_Battle_REST_API.Model
 
             return toLower ? element.ToLower() : element;
         }
-
+        public string GetstringCardColor()
+        {
+            return color;
+        }
         public bool IsSummoner()
         {
             return type == "Summoner";
