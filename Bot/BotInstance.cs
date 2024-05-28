@@ -337,8 +337,8 @@ namespace Ultimate_Splinterlands_Bot_V2.Bot
                     + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"allyColor\":\"" + allucolor + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
                     }
                     else{
-                        json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"summoner\":\"" + summoner 
-                         + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
+                    json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"summoner\":\"" + summoner 
+                    + "\",\"monsters\":[" + monsters + "],\"secret\":\"" + secret + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
                     }
                 //string json = "{\"trx_id\":\"" + tx + "\",\"team_hash\":\"" + teamHash + "\",\"app\":\"" + Settings.SPLINTERLANDS_APP + "\",\"n\":\"" + n + "\"}";
                 Log.WriteToLog($"{Username}: json team {json}");
